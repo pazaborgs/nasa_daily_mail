@@ -13,9 +13,12 @@ from jinja2 import Template
 
 load_dotenv()
 API_KEY = os.getenv('NASA_API_KEY')
+EMAIL_SENDER = os.getenv('EMAIL_SENDER')
 EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
-EMAIL_SENDER = 'pazabot@gmail.com'
-EMAIL_RECEIVERS = ['patsrgsreis@gmail.com'] #"belelemoreno@gmail.com"
+receivers_env = os.getenv('EMAIL_RECEIVERS', '')
+EMAIL_RECEIVERS = receivers_env.split(',') if receivers_env else []
+APELIDO = os.getenv('APELIDO', 'Amor')
+ASSINATURA = os.getenv('ASSINATURA', 'Seu Amado')
 
 # --- Fetch API ---
 
@@ -144,9 +147,9 @@ template_str = """
         <p class="date">{{ data_hoje }}</p>
 
         <p class="intro">
-            Oi, Bi! 💙<br>
+            Oi, {{ apelido }}! 💙<br>
             Olhei para o espaço hoje e lembrei de você!<br>
-            O universo é infinito, mas você ainda é minha descoberta favorita.
+            {{ mensagem_personalizada }}
         </p>
         
         <div class="img-box">
@@ -161,7 +164,7 @@ template_str = """
         
         <div class="footer">
             Com todo o amor do mundo (e de todas as galáxias!),<br>
-            <strong>Seu Patrick "bestinha" & PazaBot <span class="heart">♥</span></strong>
+            <strong>Seu {{ assinatura }} <span class="heart">♥</span></strong>
             <br><br>
             <small style="font-size: 10px">Créditos da imagem: {{ copyright }}</small>
         </div>
@@ -178,7 +181,10 @@ html_body = template.render(
     data_hoje=date.today().strftime('%d/%m/%Y'),
     image_url=image_url,
     explanation=explanation_pt,
-    copyright=copyright_info
+    copyright=copyright_info,
+    apelido=APELIDO, 
+    mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorita.",
+    assinatura=ASSINATURA
 )
 
 # --- Envio do email ---
