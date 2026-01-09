@@ -30,7 +30,7 @@ params = {
     'hd': True
 }
 
-DEBUG_MODE = True
+DEBUG_MODE = True  # Modo de depuração ativado
 
 if not DEBUG_MODE:
 
@@ -164,7 +164,7 @@ template_str = """
         
         <div class="footer">
             Com todo o amor do mundo (e de todas as galáxias!),<br>
-            <strong>Seu {{ assinatura }} <span class="heart">♥</span></strong>
+            <strong>Seu {{ assinatura }} <span class="heart">💙</span></strong>
             <br><br>
             <small style="font-size: 10px">Créditos da imagem: {{ copyright }}</small>
         </div>
@@ -183,7 +183,7 @@ html_body = template.render(
     explanation=explanation_pt,
     copyright=copyright_info,
     apelido=APELIDO, 
-    mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorita.",
+    mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorss.",
     assinatura=ASSINATURA
 )
 
