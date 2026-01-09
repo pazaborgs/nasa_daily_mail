@@ -1,6 +1,6 @@
 # 🌌 NASA Daily Email Bot (PazaBot)
 
-![Workflow Status](https://img.shields.io/github/actions/workflow/status/pazaborgs/nasa_daily_mail/nasa_daily_mail.yml?style=flat-square)
+[![PazaBot NASA Daily Sender](https://github.com/pazaborgs/nasa_daily_mail/actions/workflows/nasa_daily_mail.yml/badge.svg)](https://github.com/pazaborgs/nasa_daily_mail/actions/workflows/nasa_daily_mail.yml)
 
 Bot automatizado em Python que consome a API da NASA (APOD) e envia e-mails diários com imagens do espaço e descrições traduzidas. Embora feito para astronomia, a arquitetura serve de base para qualquer bot de notificações via API.
 

@@ -183,7 +183,7 @@ html_body = template.render(
     explanation=explanation_pt,
     copyright=copyright_info,
     apelido=APELIDO, 
-    mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorss.",
+    mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorita!",
     assinatura=ASSINATURA
 )
 
