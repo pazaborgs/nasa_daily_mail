@@ -13,6 +13,7 @@ Projeto desenvolvido para automatizar o envio de um "Bom dia" personalizado via 
 - **Python 3.9+**
 - **GitHub Actions:** Orquestração e execução diária automática (CI/CD/Cron).
 - **NASA APOD API:** Obtenção de dados astronômicos (imagem e explicação).
+- **Google Gemini API:** Geração de poemas (Haikus) românticos baseados no contexto da imagem.
 - **Deep Translator:** Tradução dinâmica do conteúdo (EN -> PT-BR).
 - **Jinja2:** Renderização de templates HTML (separação entre lógica e design).
 - **SMTPLib:** Envio de e-mails autenticados via Gmail.
@@ -21,6 +22,7 @@ Projeto desenvolvido para automatizar o envio de um "Bom dia" personalizado via 
 1. O script é acionado diariamente às 07:00 (BRT) via **GitHub Actions**.
 2. O código faz uma requisição à API da NASA.
 3. Traduz o título e a explicação para o português.
+4. Envia a explicação para o Google Gemini, que compõe um Haiku romântico contextualizado.
 4. Injeta os dados em um template HTML estilizado com **Jinja2**.
 5. Envia o e-mail final via servidor SMTP do Google.
 
@@ -28,6 +30,7 @@ Projeto desenvolvido para automatizar o envio de um "Bom dia" personalizado via 
 Para rodar este projeto, é necessário configurar as seguintes Variáveis de Ambiente (no `.env` local ou nos **Secrets** do GitHub):
 
 - `NASA_API_KEY`: Sua chave de API da NASA.
+- `GENAI_API_KEY`: Sua chave de API do Google AI Studio (Gemini).
 - `EMAIL_PASSWORD`: Senha de App do Gmail.
 - `EMAIL_SENDER`: E-mail que enviará as mensagens.
 - `EMAIL_RECEIVERS`: Lista de destinatários.

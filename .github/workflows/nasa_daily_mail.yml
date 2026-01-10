@@ -28,4 +28,11 @@ jobs:
         env:
           NASA_API_KEY: ${{ secrets.NASA_API_KEY }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
+          APELIDO: ${{ secrets.APELIDO }}
+          ASSINATURA: ${{ secrets.ASSINATURA }}
+          GENAI_API_KEY: ${{ secrets.GENAI_API_KEY }}
+
+
         run: python main.py

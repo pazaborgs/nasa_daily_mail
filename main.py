@@ -7,6 +7,7 @@ from deep_translator import GoogleTranslator
 import os
 from dotenv import load_dotenv
 from jinja2 import Template
+import google.generativeai as genai
 
 
 # --- Variáveis de Ambiente ---
@@ -47,7 +48,7 @@ else:
     print("API fora do ar. Modo de depuração ativado: Usando dados de teste.")
     data = {
         "title": "The Starry Night (Test)",
-        "explanation": "This is a test description used when the NASA API is down. It simulates the text to verify if the translator works correctly.",
+        "explanation": "Van Gogh's masterpiece, The Starry Night, captures a turbulent, swirling night sky filled with glowing stars and a bright crescent moon. Beneath the cosmic energy lies a quiet village with a church spire, anchored by a dark, flame-like cypress tree in the foreground. Painted in 1889 from his asylum room, it blends observation with emotion.",
         "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/800px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
         "hdurl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1200px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
         "copyright": "Vincent van Gogh",
@@ -68,6 +69,42 @@ print("Traduzindo textos...")
 translator = GoogleTranslator(source='en', target='pt')
 title_pt = translator.translate(title_en)
 explanation_pt = translator.translate(explanation_en)
+
+# --- Gerando mini poema ---
+
+geminai_api_key = os.getenv('GENAI_API_KEY')
+mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorita!"
+
+
+
+if geminai_api_key:
+    try:
+        genai.configure(api_key=geminai_api_key)
+        model = genai.GenerativeModel("models/gemini-2.5-flash")
+
+        # Prompt ajustado para Haiku Romântico
+        prompt = f"""
+        Aja como um poeta apaixonado pelo cosmos.
+        Escreva um Haiku (poema de exatamente 3 versos) romântico em português, mas com estética japonesa.
+        Use a seguinte explicação astronômica como inspiração:
+        
+        "{explanation_pt}"
+        
+        Regras:
+        1. Mantenha a estrutura de 3 linhas.
+        2. Seja romântico, mas conecte com o tema do espaço acima obrigatoriamente.
+        3. Não inclua títulos ou explicações extras.
+        """
+
+        response = model.generate_content(prompt)
+
+        if response.text:
+            mensagem_personalizada = response.text.strip()
+
+    except Exception as e:
+        print(f"Erro ao gerar Haiku com Gemini: {e}")
+else:
+    print("Chave da API do Gemini AI não encontrada. Usando mensagem padrão.")
 
 # --- Template da mensagem HTML ---
 
@@ -183,7 +220,7 @@ html_body = template.render(
     explanation=explanation_pt,
     copyright=copyright_info,
     apelido=APELIDO, 
-    mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorita!",
+    mensagem_personalizada = mensagem_personalizada,
     assinatura=ASSINATURA
 )
 
