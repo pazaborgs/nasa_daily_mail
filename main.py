@@ -1,6 +1,3 @@
-
-# --- Imports ---
-
 import requests
 import smtplib
 import ssl
@@ -32,7 +29,6 @@ def get_art_data():
 
     try:
         # Simula um navegador para conexão
-
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/plain, */*',
@@ -49,10 +45,9 @@ def get_art_data():
             'limit': 10,
             'page': random_page
         }
-
             
-        session = requests.Session() # Usando Session para gerenciar cookies
-        response = session.get(url, params=params, headers = headers, timeout=30)
+        session = requests.Session()
+        response = session.get(url, params=params, headers=headers, timeout=30)
         response.raise_for_status()
         data = response.json()
         
@@ -73,15 +68,14 @@ def get_art_data():
         image_url = f'https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg'
         
         # Limpeza da descrição da obra
-
         desc = artwork.get('description')
         if desc:
             desc = str(desc).replace('<p>', '').replace('</p>', '').replace('<em>', '').replace('</em>', '')
         else:
-            desc = f'Uma obra criada por {artwork.get('artist_display')} usando a técnica {artwork.get('medium_display')}, datada de {artwork.get('date_display')}.'
+            # CORREÇÃO 1: Aspas duplas na f-string externa para não conflitar com as internas
+            desc = f"Uma obra criada por {artwork.get('artist_display')} usando a técnica {artwork.get('medium_display')}, datada de {artwork.get('date_display')}."
 
         # Traduzindo as informações da obra
-
         print('Traduzindo detalhes da obra...')
         translator = GoogleTranslator(source='auto', target='pt')
         
@@ -115,12 +109,9 @@ def get_nasa_data(mock_data = None):
 
     print('🌌 Tentando conectar com a API da NASA... \n')
 
-    # Mock_data para testes quando a API fica fora do ar
-
     if mock_data:
         print('⚠️ MODO DE TESTE ATIVADO: Usando dados simulados.\n')
         data = mock_data
-
     else:
         url = 'https://api.nasa.gov/planetary/apod'
         params = {
@@ -131,7 +122,7 @@ def get_nasa_data(mock_data = None):
             }
         
         try:
-            response = requests.get(url, params = params, timeout = 30)
+            response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
             data = response.json()
         except Exception as e:
@@ -141,8 +132,6 @@ def get_nasa_data(mock_data = None):
     if not data:
         return None
         
-    # Tratando o caso video x imagem
-        
     image_url = None
     video_url = None
 
@@ -150,7 +139,6 @@ def get_nasa_data(mock_data = None):
         print('🎥 É vídeo. Pegando thumbnail.')
         image_url = data.get('thumbnail_url')
         video_url = data.get('url')
-        
     else:
         print('📸 É imagem. \n')
         image_url = data.get('hdurl', data.get('url'))
@@ -159,8 +147,6 @@ def get_nasa_data(mock_data = None):
         print('⚠️ Não foi possível obter imagem ou thumbnail.')
         return None
         
-    # Traduzindo as informações da imagem
-
     print('Traduzindo textos...')
     translator = GoogleTranslator(source='auto', target='pt')
 
@@ -186,7 +172,7 @@ def get_nasa_data(mock_data = None):
         'emoji': '🌌',
         'theme_color': '#0277bd', 
         'bg_color': '#e1f5fe',
-            'intro_text': 'Olhei para o espaço hoje e lembrei de você!'
+        'intro_text': 'Olhei para o espaço hoje e lembrei de você!'
     }
 
 
@@ -197,19 +183,14 @@ if __name__ == '__main__':
     print('Inicializando o código... \n')
 
     # 1. Tenta Nasa
-
-    #content_data = get_nasa_data()
-    content_data = None             # <-- Adicione esta linha
-    print('🚫 Teste: Simulando falha da NASA (Forçando Arte)...')
+    content_data = get_nasa_data()
 
     # 2. Caso falhe, tenta arte
-
     if not content_data:
         print('⚠️ NASA indisponível. Ativando Plano B (Arte)...')
         content_data = get_art_data()
 
     # 3. Falha geral
-
     if not content_data:
         print('❌ Erro Crítico: Nenhuma fonte disponível hoje. Encerrando.')
         exit()
@@ -217,7 +198,8 @@ if __name__ == '__main__':
     # --- Gerando Mini Poema (Gemini) ---
 
     geminai_api_key = os.getenv('GENAI_API_KEY')
-
+    
+    # Define mensagem padrão caso Gemini falhe
     if content_data['type'] == 'space':
         mensagem_personalizada = 'O universo é infinito, mas você ainda é minha descoberta favorita!'
     else:
@@ -227,8 +209,6 @@ if __name__ == '__main__':
         try:
             genai.configure(api_key=geminai_api_key)
             model = genai.GenerativeModel('models/gemini-2.5-flash')
-
-            # Prompt Haiku
 
             prompt = f'''
             Aja como um poeta apaixonado pelo cosmos e pelas artes.
@@ -290,7 +270,7 @@ if __name__ == '__main__':
             <p class='intro'>
                 Oi, {{ apelido }}! <br>
                 {{ intro_text }}<br><br>
-                <em>'{{ mensagem_personalizada }}'</em>
+                <em>"{{ mensagem_personalizada }}"</em>
             </p>
             
             <div class='img-box'>
@@ -350,7 +330,9 @@ if __name__ == '__main__':
     msg = EmailMessage()
     msg['From'] = EMAIL_SENDER
     msg['To'] = ', '.join(EMAIL_RECEIVERS) 
-    msg['Subject'] = f'{content_data['emoji']} {APELIDO}: {content_data['title']}'
+    
+    # CORREÇÃO 2: Aspas duplas na f-string externa
+    msg['Subject'] = f"{content_data['emoji']} {APELIDO}: {content_data['title']}"
 
     msg.set_content(html_body, subtype='html')
 
