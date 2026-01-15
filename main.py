@@ -1,3 +1,6 @@
+
+# --- Imports ---
+
 import requests
 import smtplib
 import ssl
@@ -8,7 +11,7 @@ import os
 from dotenv import load_dotenv
 from jinja2 import Template
 import google.generativeai as genai
-
+import random
 
 # --- Variáveis de Ambiente ---
 
@@ -21,225 +24,342 @@ EMAIL_RECEIVERS = receivers_env.split(',') if receivers_env else []
 APELIDO = os.getenv('APELIDO', 'Amor')
 ASSINATURA = os.getenv('ASSINATURA', 'Seu Amado')
 
-# --- Fetch API ---
+# --- Funções de Busca Dedicadas (NASA x Chicago Art Institute)
 
-print("Iniciando o processo...")
-url = "https://api.nasa.gov/planetary/apod"
-params = {
-    'api_key': API_KEY,
-    'date': date.today(),
-    'hd': True
-}
+def get_art_data():
+    '''Busca uma arte aleatória no Art Institute of Chicago'''
+    print('🎨 Tentando conectar com o Art Institute of Chicago... \n')
 
-DEBUG_MODE = True  # Modo de depuração ativado
+    try:
+        # Simula um navegador para conexão
 
-if not DEBUG_MODE:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Referer': 'https://www.artic.edu/',
+            'Origin': 'https://www.artic.edu',
+            'Connection': 'keep-alive'
+        }
 
-    print("Consultando a NASA...")
-    response = requests.get(url, params=params)
-    data = response.json()
+        random_page = random.randint(1, 100) # Escolhe uma página aleatória no site
+        url = 'https://api.artic.edu/api/v1/artworks/search'
+        params = {
+            'query[term][is_public_domain]': 'true',
+            'fields': 'id,title,artist_display,image_id,description,date_display,medium_display',
+            'limit': 10,
+            'page': random_page
+        }
 
-    # Verifica a resposta
-    if response.status_code != 200:
-        print(f"Erro na API da NASA: {response.status_code}")
-        exit()
+            
+        session = requests.Session() # Usando Session para gerenciar cookies
+        response = session.get(url, params=params, headers = headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        
+        if not data.get('data'): return None
+        
+        artwork = random.choice(data['data'])
+        image_id = artwork.get('image_id')
+        
+        # Backup de imagem
+        if not image_id:
+            for i in data['data']:
+                if i.get('image_id'):
+                    artwork = i
+                    image_id = i.get('image_id')
+                    break
+            if not image_id: return None
 
-else:
-    print("API fora do ar. Modo de depuração ativado: Usando dados de teste.")
-    data = {
-        "title": "The Starry Night (Test)",
-        "explanation": "Van Gogh's masterpiece, The Starry Night, captures a turbulent, swirling night sky filled with glowing stars and a bright crescent moon. Beneath the cosmic energy lies a quiet village with a church spire, anchored by a dark, flame-like cypress tree in the foreground. Painted in 1889 from his asylum room, it blends observation with emotion.",
-        "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/800px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
-        "hdurl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1200px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
-        "copyright": "Vincent van Gogh",
-        "date": "2024-01-01"
+        image_url = f'https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg'
+        
+        # Limpeza da descrição da obra
+
+        desc = artwork.get('description')
+        if desc:
+            desc = str(desc).replace('<p>', '').replace('</p>', '').replace('<em>', '').replace('</em>', '')
+        else:
+            desc = f'Uma obra criada por {artwork.get('artist_display')} usando a técnica {artwork.get('medium_display')}, datada de {artwork.get('date_display')}.'
+
+        # Traduzindo as informações da obra
+
+        print('Traduzindo detalhes da obra...')
+        translator = GoogleTranslator(source='auto', target='pt')
+        
+        try:
+            title_pt = translator.translate(artwork.get('title', 'Obra'))
+            explanation_pt = translator.translate(desc[:4500])
+        except:
+            title_pt = artwork.get('title', 'Obra')
+            explanation_pt = desc
+
+        return {
+            'source': 'art',
+            'type': 'art',
+            'title': title_pt,
+            'explanation': explanation_pt,
+            'image_url': image_url,
+            'video_url': None,
+            'copyright_info': artwork.get('artist_display', 'Artista Desconhecido'),
+            'emoji': '🎨',
+            'theme_color': '#880e4f',
+            'bg_color': '#fce4ec',
+            'intro_text': 'A NASA estava tímida hoje, mas encontrei esta obra de arte para você!'
+        }
+    
+    except Exception as e:
+        print(f'❌ Erro na API de Arte (Chicago): {e}')
+        return None
+
+def get_nasa_data(mock_data = None):
+    '''Busca uma a Imagem Astronômica do Dia usando a API APOD da NASA'''
+
+    print('🌌 Tentando conectar com a API da NASA... \n')
+
+    # Mock_data para testes quando a API fica fora do ar
+
+    if mock_data:
+        print('⚠️ MODO DE TESTE ATIVADO: Usando dados simulados.\n')
+        data = mock_data
+
+    else:
+        url = 'https://api.nasa.gov/planetary/apod'
+        params = {
+            'api_key': API_KEY,
+            'date': date.today(),
+            'hd': True,
+            'thumbs': True
+            }
+        
+        try:
+            response = requests.get(url, params = params, timeout = 30)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            print(f'❌ Erro na API da NASA: {e}')
+            return None
+
+    if not data:
+        return None
+        
+    # Tratando o caso video x imagem
+        
+    image_url = None
+    video_url = None
+
+    if data.get('media_type') == 'video':
+        print('🎥 É vídeo. Pegando thumbnail.')
+        image_url = data.get('thumbnail_url')
+        video_url = data.get('url')
+        
+    else:
+        print('📸 É imagem. \n')
+        image_url = data.get('hdurl', data.get('url'))
+
+    if not image_url:
+        print('⚠️ Não foi possível obter imagem ou thumbnail.')
+        return None
+        
+    # Traduzindo as informações da imagem
+
+    print('Traduzindo textos...')
+    translator = GoogleTranslator(source='auto', target='pt')
+
+    title_en = data.get('title', 'Sem Título')
+    explanation_en = data.get('explanation', 'Sem Descrição')
+
+    try:
+        title_pt = translator.translate(title_en)
+        explanation_pt = translator.translate(explanation_en[:4500])
+    except Exception as e:
+        print(f'⚠️ Falha na tradução: {e}. Usando texto original.')
+        title_pt = title_en
+        explanation_pt = explanation_en
+        
+    return {
+        'source': 'nasa',
+        'type': 'space',
+        'image_url': image_url,
+        'video_url': video_url,
+        'title': title_pt,
+        'explanation': explanation_pt,
+        'copyright_info': data.get('copyright', 'NASA Public Domain'),
+        'emoji': '🌌',
+        'theme_color': '#0277bd', 
+        'bg_color': '#e1f5fe',
+            'intro_text': 'Olhei para o espaço hoje e lembrei de você!'
     }
 
-# Extraindo os dados
 
-image_url = data.get('hdurl', data.get('url'))
-title_en = data.get('title', 'Sem título')
-explanation_en = data.get('explanation', 'Sem descrição')
-copyright_info = data.get('copyright', 'NASA Public Domain')
+# --- Rodando o Código ---
 
-# --- Traduzindo os textos ---
+if __name__ == '__main__':
 
-print("Traduzindo textos...")
+    print('Inicializando o código... \n')
 
-translator = GoogleTranslator(source='en', target='pt')
-title_pt = translator.translate(title_en)
-explanation_pt = translator.translate(explanation_en)
+    # 1. Tenta Nasa
 
-# --- Gerando mini poema ---
+    #content_data = get_nasa_data()
+    content_data = None             # <-- Adicione esta linha
+    print('🚫 Teste: Simulando falha da NASA (Forçando Arte)...')
 
-geminai_api_key = os.getenv('GENAI_API_KEY')
-mensagem_personalizada = "O universo é infinito, mas você ainda é minha descoberta favorita!"
+    # 2. Caso falhe, tenta arte
 
+    if not content_data:
+        print('⚠️ NASA indisponível. Ativando Plano B (Arte)...')
+        content_data = get_art_data()
 
+    # 3. Falha geral
 
-if geminai_api_key:
-    try:
-        genai.configure(api_key=geminai_api_key)
-        model = genai.GenerativeModel("models/gemini-2.5-flash")
+    if not content_data:
+        print('❌ Erro Crítico: Nenhuma fonte disponível hoje. Encerrando.')
+        exit()
 
-        # Prompt ajustado para Haiku Romântico
-        prompt = f"""
-        Aja como um poeta apaixonado pelo cosmos.
-        Escreva um Haiku (poema de exatamente 3 versos) romântico em português, mas com estética japonesa.
-        Use a seguinte explicação astronômica como inspiração:
-        
-        "{explanation_pt}"
-        
-        Regras:
-        1. Mantenha a estrutura de 3 linhas.
-        2. Seja romântico, mas conecte com o tema do espaço acima obrigatoriamente.
-        3. Não inclua títulos ou explicações extras.
-        """
+    # --- Gerando Mini Poema (Gemini) ---
 
-        response = model.generate_content(prompt)
+    geminai_api_key = os.getenv('GENAI_API_KEY')
 
-        if response.text:
-            mensagem_personalizada = response.text.strip()
+    if content_data['type'] == 'space':
+        mensagem_personalizada = 'O universo é infinito, mas você ainda é minha descoberta favorita!'
+    else:
+        mensagem_personalizada = 'O musa tão esbelta. Vitaliza minha alma'
 
-    except Exception as e:
-        print(f"Erro ao gerar Haiku com Gemini: {e}")
-else:
-    print("Chave da API do Gemini AI não encontrada. Usando mensagem padrão.")
+    if geminai_api_key:
+        try:
+            genai.configure(api_key=geminai_api_key)
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
 
-# --- Template da mensagem HTML ---
+            # Prompt Haiku
 
-template_str = """
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { 
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
-            background-color: #f0f8ff; /* AliceBlue */
-            color: #555; 
-            margin: 0;
-            padding: 20px;
-        }
-        .paper { 
-            background-color: #ffffff; 
-            max-width: 600px; 
-            margin: 0 auto; 
-            padding: 40px; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 30px rgba(33, 150, 243, 0.15);
-            border: 2px dashed #81d4fa; /* Azul Céu */
-        }
-        h1 { 
-            color: #0277bd; /* Azul Profundo (Corrigido de rosa) */
-            text-align: center; 
-            font-family: 'Georgia', serif;
-            font-style: italic;
-            margin-bottom: 10px;
-        }
-        .date {
-            text-align: center;
-            color: #90a4ae;
-            font-size: 0.9em;
-            margin-bottom: 30px;
-        }
-        .intro {
-            font-size: 1.1em;
-            text-align: center;
-            color: #37474f; /* Azul acinzentado escuro (Legibilidade melhorada) */
-            margin-bottom: 25px;
-            line-height: 1.6;
-        }
-        .img-box { 
-            text-align: center; 
-            margin: 20px 0; 
-            padding: 12px;
-            background-color: #e1f5fe; /* Fundo azul bem claro */
-            border-radius: 8px;
-        }
-        img { 
-            max-width: 100%; 
-            border-radius: 4px; 
-        }
-        h3 {
-            color: #039be5; /* Azul vibrante */
-            border-bottom: 1px solid #b3e5fc; /* Borda azul clara (Corrigido de rosa) */
-            padding-bottom: 10px;
-            margin-top: 30px;
-        }
-        p { line-height: 1.8; }
-        .footer { 
-            margin-top: 40px; 
-            font-size: 13px; 
-            color: #78909c; /* Cinza azulado */
-            text-align: center; 
-            border-top: 1px solid #eceff1;
-            padding-top: 20px;
-        }
-        .heart { color: #0288d1; } /* Coração Azul */
-    </style>
-</head>
-<body>
-    <div class="paper">
-        <h1>✨ Para o meu Universo ✨</h1>
-        <p class="date">{{ data_hoje }}</p>
+            prompt = f'''
+            Aja como um poeta apaixonado pelo cosmos e pelas artes.
+            Escreva um Haiku (poema de exatamente 3 versos) romântico em português, mas com estética japonesa.
+            Use a seguinte explicação como inspiração:
+            
+            '{content_data['explanation']}'
+            
+            Regras:
+            1. Mantenha a estrutura de 3 linhas.
+            2. Seja romântico, mas conecte com o tema acima obrigatoriamente.
+            3. Não inclua títulos ou explicações extras.
+            '''
 
-        <p class="intro">
-            Oi, {{ apelido }}! 💙<br>
-            Olhei para o espaço hoje e lembrei de você!<br>
-            {{ mensagem_personalizada }}
-        </p>
-        
-        <div class="img-box">
-            <img src="{{ image_url }}" alt="{{ title }}">
-            <p style="font-size: 0.8em; color: #0277bd; margin-top: 8px;">
-                <strong>{{ title }}</strong>
+            response = model.generate_content(prompt)
+
+            if response.text:
+                mensagem_personalizada = response.text.strip()
+
+        except Exception as e:
+            print(f'Erro ao gerar Haiku com Gemini: {e}')
+    else:
+        print('Chave da API do Gemini AI não encontrada. Usando mensagem padrão.')
+
+    # --- Template da mensagem HTML ---
+
+    template_str = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #fafafa; color: #555; margin: 0; padding: 20px; }
+            .paper { 
+                background-color: #ffffff; max-width: 600px; margin: 0 auto; padding: 40px; 
+                border-radius: 15px; 
+                box-shadow: 0 10px 30px rgba(0,0,0, 0.1);
+                border: 2px dashed {{ theme_color }};
+            }
+            h1 { color: {{ theme_color }}; text-align: center; font-family: 'Georgia', serif; font-style: italic; margin-bottom: 10px; }
+            .date { text-align: center; color: #999; font-size: 0.9em; margin-bottom: 30px; }
+            .intro { font-size: 1.1em; text-align: center; color: #444; margin-bottom: 25px; line-height: 1.6; }
+            .img-box { 
+                text-align: center; margin: 20px 0; padding: 15px;
+                background-color: {{ bg_color }}; 
+                border-radius: 8px;
+            }
+            img { max-width: 100%; border-radius: 4px; }
+            h3 { color: {{ theme_color }}; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 30px; }
+            p { line-height: 1.8; }
+            .footer { margin-top: 40px; font-size: 13px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+            .heart { color: {{ theme_color }}; }
+        </style>
+    </head>
+    <body>
+        <div class='paper'>
+            <h1>{{ emoji }} Para o Meu Amor! {{ emoji }}</h1>
+            <p class='date'>{{ data_hoje }}</p>
+
+            <p class='intro'>
+                Oi, {{ apelido }}! <br>
+                {{ intro_text }}<br><br>
+                <em>'{{ mensagem_personalizada }}'</em>
             </p>
+            
+            <div class='img-box'>
+                {% if video_url %}
+                    <a href='{{ video_url }}' target='_blank' style='text-decoration: none;'>
+                    <img src='{{ image_url }}' alt='{{ title }}'>
+                    <div style='margin-top: 10px; background-color: #d32f2f; color: white; display: inline-block; padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: bold;'>
+                        ▶️ Assistir Vídeo
+                    </div>
+                    </a>
+                {% else %}
+                    <img src='{{ image_url }}' alt='{{ title }}'>
+                {% endif %}
+
+                <p style='font-size: 0.9em; color: {{ theme_color }}; margin-top: 8px;'>
+                    <strong>{{ title }}</strong>
+                </p>
+            </div>
+            
+            <h3>Sobre a imagem:</h3>
+            <p>{{ explanation }}</p>
+            
+            <div class='footer'>
+                Com todo amor,<br>
+                <strong>Seu {{ assinatura }} <span class='heart'>❤</span></strong>
+                <br><br>
+                <small>Créditos: {{ copyright }}</small>
+            </div>
         </div>
-        
-        <h3>O que estamos vendo?</h3>
-        <p>{{ explanation }}</p>
-        
-        <div class="footer">
-            Com todo o amor do mundo (e de todas as galáxias!),<br>
-            <strong>Seu {{ assinatura }} <span class="heart">💙</span></strong>
-            <br><br>
-            <small style="font-size: 10px">Créditos da imagem: {{ copyright }}</small>
-        </div>
-    </div>
-</body>
-</html>
-"""
+    </body>
+    </html>
+    '''
 
-# --- Renderizando o template com as variáveis ---
+    # --- Renderizando o template com as variáveis ---
 
-template = Template(template_str)
-html_body = template.render(
-    title=title_pt,
-    data_hoje=date.today().strftime('%d/%m/%Y'),
-    image_url=image_url,
-    explanation=explanation_pt,
-    copyright=copyright_info,
-    apelido=APELIDO, 
-    mensagem_personalizada = mensagem_personalizada,
-    assinatura=ASSINATURA
-)
+    template = Template(template_str)
+    html_body = template.render(
+        title = content_data['title'],
+        data_hoje = date.today().strftime('%d/%m/%Y'),
+        image_url = content_data['image_url'],
+        video_url = content_data['video_url'],
+        explanation = content_data['explanation'],
+        copyright = content_data['copyright_info'],
+        apelido = APELIDO, 
+        mensagem_personalizada = mensagem_personalizada,
+        assinatura = ASSINATURA,
+        theme_color = content_data['theme_color'],
+        bg_color = content_data['bg_color'],
+        emoji = content_data['emoji'],
+        intro_text = content_data['intro_text']
+    )
 
-# --- Envio do email ---
 
-print("Preparando email...")
-msg = EmailMessage()
-msg['From'] = EMAIL_SENDER
-msg['To'] = ", ".join(EMAIL_RECEIVERS) 
-msg['Subject'] = f'NASA APOD: {title_pt}'
+    # --- Envio do email ---
 
-msg.set_content(html_body, subtype='html')
+    print('Preparando email...')
+    msg = EmailMessage()
+    msg['From'] = EMAIL_SENDER
+    msg['To'] = ', '.join(EMAIL_RECEIVERS) 
+    msg['Subject'] = f'{content_data['emoji']} {APELIDO}: {content_data['title']}'
 
-context = ssl.create_default_context()
+    msg.set_content(html_body, subtype='html')
 
-try:
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context = context) as smtp:
-        smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
-        smtp.sendmail(EMAIL_SENDER, EMAIL_RECEIVERS, msg.as_string())
-    print("✅ E-mail enviado com sucesso!")
-except Exception as e:
-    print(f"❌ Erro ao enviar e-mail: {e}")
+    context = ssl.create_default_context()
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, context = context) as smtp:
+            smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            smtp.sendmail(EMAIL_SENDER, EMAIL_RECEIVERS, msg.as_string())
+        print('✅ E-mail enviado com sucesso!')
+    except Exception as e:
+        print(f'❌ Erro ao enviar e-mail: {e}')
